@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bwy0vegmpp4d8"
-path="res://.godot/imported/icon.png-487276ed1e3a0c39cad0279d744ee560.ctex"
+path="res://.godot/imported/icon.png-7a3fca1fa4600d24201838264143b9f3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://icon.png"
-dest_files=["res://.godot/imported/icon.png-487276ed1e3a0c39cad0279d744ee560.ctex"]
+source_file="res://addons/scorm-godot-plugin/icon.png"
+dest_files=["res://.godot/imported/icon.png-7a3fca1fa4600d24201838264143b9f3.ctex"]
 
 [params]
 
