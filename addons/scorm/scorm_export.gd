@@ -33,12 +33,13 @@ func _export_end() -> void:
 
 func _copy_assets() -> void:
 	"""Copy some essential files to the export directory."""
-	DirAccess.copy_absolute("res://addons/scorm/%s" % SCORMJS_FILENAME, "%s/%s" % [export_dir_path, SCORMJS_FILENAME])
-	DirAccess.copy_absolute("res://addons/scorm/assets/%s" % MANIFEST_FILENAME, "%s/%s" % [export_dir_path, MANIFEST_FILENAME])
-	var files := DirAccess.open("res://addons/scorm/assets")
+	var plugin_dir: String = get_script().resource_path.get_base_dir()
+	DirAccess.copy_absolute("%s/%s" % [plugin_dir, SCORMJS_FILENAME], "%s/%s" % [export_dir_path, SCORMJS_FILENAME])
+	DirAccess.copy_absolute("%s/assets/%s" % [plugin_dir, MANIFEST_FILENAME], "%s/%s" % [export_dir_path, MANIFEST_FILENAME])
+	var files := DirAccess.open("%s/assets" % plugin_dir)
 	for file_name in files.get_files():
 		if file_name.contains(".xsd"):
-			DirAccess.copy_absolute("res://addons/scorm/assets/%s" % file_name, "%s/%s" % [export_dir_path, file_name])
+			DirAccess.copy_absolute("%s/assets/%s" % [plugin_dir, file_name], "%s/%s" % [export_dir_path, file_name])
 	print(_pmsg("Scorm assets copied to export dir."))
 
 
