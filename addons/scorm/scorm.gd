@@ -6,24 +6,38 @@ signal attribute_updated(atribute: Attributes, value: Variant)
 @export var verbose_mode: bool = false
 
 
-# Represents the student score in the current SCO attempt.
 enum Attributes {
-	SCORE,	# int 0-100
-	SCORE_MAX, # int 0
-	SCORE_MIN, # int 100
-	LESSON_STATUS,	# enum LessonStatus (1.2 name, in 2004 it's 'completion_status')
-	#SESSION_TIME,	# Write only, managed at scorm.js
-	#SUCCESS_STATUS,	# enum SuccessStatus (scorm 2004)
+	SCORE,           # int 0-100
+	SCORE_MAX,       # int
+	SCORE_MIN,       # int
+	LESSON_STATUS,   # enum LessonStatus (1.2 name, in 2004 it's 'completion_status')
+	#SESSION_TIME,   # Write only, managed at scorm.js
+	#SUCCESS_STATUS, # enum SuccessStatus (scorm 2004)
+	STUDENT_NAME,    # String (read-only from LMS)
+	STUDENT_ID,      # String (read-only from LMS)
+	LESSON_MODE,     # String (read-only from LMS: "browse", "normal", "review")
+	LESSON_LOCATION, # String
+	LANGUAGE,        # String
+	AUDIO,           # int
+	SPEED,           # int
+	TEXT,            # int
+	SUSPEND_DATA,    # String
 }
 
-# See SCORM 1.2 reference: https://scorm.com/scorm-explained/technical-scorm/run-time/run-time-reference/#section-2
 const ATTRIBUTES_TXT = {
-	Attributes.SCORE: "cmi.core.score.raw",
-	Attributes.SCORE_MAX: "cmi.core.score.max",
-	Attributes.SCORE_MIN: "cmi.core.score.min",
-	Attributes.LESSON_STATUS: "cmi.core.lesson_status",
-	# Attributes.SUCCESS_STATUS: "cmi.success_status",
-	#Attributes.SESSION_TIME: "cmi.core.session_time",
+	Attributes.SCORE: ScormKeys.SCORE_RAW,
+	Attributes.SCORE_MAX: ScormKeys.SCORE_MAX,
+	Attributes.SCORE_MIN: ScormKeys.SCORE_MIN,
+	Attributes.LESSON_STATUS: ScormKeys.LESSON_STATUS,
+	Attributes.STUDENT_NAME: ScormKeys.STUDENT_NAME,
+	Attributes.STUDENT_ID: ScormKeys.STUDENT_ID,
+	Attributes.LESSON_MODE: ScormKeys.LESSON_MODE,
+	Attributes.LESSON_LOCATION: ScormKeys.LESSON_LOCATION,
+	Attributes.LANGUAGE: ScormKeys.LANGUAGE,
+	Attributes.AUDIO: ScormKeys.AUDIO,
+	Attributes.SPEED: ScormKeys.SPEED,
+	Attributes.TEXT: ScormKeys.TEXT,
+	Attributes.SUSPEND_DATA: ScormKeys.SUSPEND_DATA,
 }
 
 # Finished info
@@ -74,7 +88,6 @@ class DME:
 	func _init(attr: Attributes, val: Variant):
 		self.id = Scorm._id_next()
 		self.attr = attr
-		#self.val = val
 		if (!_set_safe(val)):
 			push_error("Not possible to create DME ('%s', '%s')" % [attr, val])
 			self.attr = -1
@@ -111,6 +124,19 @@ class DME:
 					return false
 				self.val_ext = LESSON_STATUS_TXT[val]
 				self.val = val
+			Scorm.Attributes.STUDENT_NAME,\
+			Scorm.Attributes.STUDENT_ID,\
+			Scorm.Attributes.LESSON_MODE,\
+			Scorm.Attributes.LESSON_LOCATION,\
+			Scorm.Attributes.LANGUAGE,\
+			Scorm.Attributes.SUSPEND_DATA:
+				self.val = str(val)
+				self.val_ext = str(val)
+			Scorm.Attributes.AUDIO,\
+			Scorm.Attributes.SPEED,\
+			Scorm.Attributes.TEXT:
+				self.val = int(val)
+				self.val_ext = int(val)
 			_:
 				push_error("Error! Not possible to process attribute '%s'." % [self.attr])
 				return false
@@ -148,13 +174,43 @@ func get_lesson_status() -> LessonStatus:
 	return dme.get_value()
 
 
+func set_completed(score: int) -> void:
+	if get_lesson_status() == LessonStatus.COMPLETED:
+		return
+	set_score(score)
+	set_lesson_status(LessonStatus.COMPLETED)
+
+
+func get_attribute(key: String) -> String:
+	return lms_get_attr_raw(key)
+
+
+func set_attribute(key: String, value: String) -> void:
+	lms_set_attr_raw(key, value)
+	lms_commit()
+
+
+func get_language() -> String:
+	var dme := lms_get_attr(Attributes.LANGUAGE)
+	return str(dme.get_value()) if dme else ""
+
+
+func get_suspend_data() -> String:
+	var dme := lms_get_attr(Attributes.SUSPEND_DATA)
+	return str(dme.get_value()) if dme else ""
+
+
+func set_suspend_data(value: String) -> void:
+	lms_set_attr(Attributes.SUSPEND_DATA, value)
+
+
 ## Direct access
 func lms_get_attr(attribute: Attributes) -> DME:
 	_logv("> lms_get_attr '%s'" % [ATTRIBUTES_TXT[attribute]])
 	var lms_value = js_scorm.getValue(ATTRIBUTES_TXT[attribute])
 	_logv("> lms_value '%s'" % [lms_value])
 	if !lms_value:
-		_logv("> Value no present in LMS.")
+		_logv("> Value not present in LMS.")
 		return null
 	var sanitized_value := _value_ext2type(attribute, lms_value)
 	_logv("> sanitized_value '%s'" % [sanitized_value])
@@ -230,34 +286,75 @@ func _value_ext2type(attribute: Attributes, value: Variant) -> Variant:
 	match(attribute):
 		Scorm.Attributes.SCORE,\
 		Scorm.Attributes.SCORE_MAX,\
-		Scorm.Attributes.SCORE_MIN:
+		Scorm.Attributes.SCORE_MIN,\
+		Scorm.Attributes.AUDIO,\
+		Scorm.Attributes.SPEED,\
+		Scorm.Attributes.TEXT:
 			return int(value)
 		Scorm.Attributes.LESSON_STATUS:
+			if not TXT2LESSON_STATUS.has(value):
+				push_error("Unknown LessonStatus value '%s'." % [value])
+				return null
 			return TXT2LESSON_STATUS[value]
+		Scorm.Attributes.STUDENT_NAME,\
+		Scorm.Attributes.STUDENT_ID,\
+		Scorm.Attributes.LESSON_MODE,\
+		Scorm.Attributes.LESSON_LOCATION,\
+		Scorm.Attributes.LANGUAGE,\
+		Scorm.Attributes.SUSPEND_DATA:
+			return str(value)
 		_:
 			push_error("Error! Attribute '%s' with value '%s' not mapped." % [attribute, value])
 			return null
 
 
+var mock_config: ScormMockConfig
+
+func set_mock_config(config: ScormMockConfig) -> void:
+	mock_config = config
+	if js_scorm is MockScorm:
+		js_scorm = MockScorm.new(config)
+
+
 var js_scorm
 class MockScorm:
-	const _mock_msg := "Mocked object"
+	var _data: Dictionary = {}
+	var _config: ScormMockConfig
 
 	var reachedEnd: bool
+
+	func _init(config: ScormMockConfig = null) -> void:
+		if config:
+			_config = config
+			_data = config.data.duplicate()
+
 	func getValue(key: String) -> Variant:
-		print(_mock_msg)
-		return ""
+		return str(_data.get(key, ""))
+
 	func setValue(key: String, val: Variant) -> void:
-		print(_mock_msg)
-		return
+		_data[key] = val
+		if _config:
+			_config.data[key] = val
+			if _config.persist_changes:
+				_save_config()
+
 	func commit() -> void:
-		print(_mock_msg)
-		return
+		pass
+
+	func _save_config() -> void:
+		if _config.resource_path.is_empty():
+			push_warning("ScormMockConfig has no resource_path, cannot persist.")
+			return
+		var err := ResourceSaver.save(_config, _config.resource_path)
+		if err != OK:
+			push_error("Failed to persist ScormMockConfig (err=%s)" % err)
 
 
 func _init():
 	js_scorm = JavaScriptBridge.get_interface("scorm")
 	if !js_scorm:
+		if OS.has_feature("web"):
+			push_warning("Scorm: no 'scorm' JS interface found — running in web without a SCORM LMS? Data will not be saved.")
 		js_scorm = MockScorm.new()
 
 	for k in LESSON_STATUS_TXT:
