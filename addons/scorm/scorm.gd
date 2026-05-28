@@ -2,6 +2,8 @@ extends Node
 
 signal attribute_updated(atribute: Attributes, value: Variant)
 
+const PROJECT_SETTINGS_SCRIPT := preload("res://addons/scorm-godot-plugin/addons/scorm/scorm_project_settings.gd")
+
 # Enables debug messages.
 @export var verbose_mode: bool = false
 
@@ -313,20 +315,21 @@ var mock_config: ScormMockConfig
 func set_mock_config(config: ScormMockConfig) -> void:
 	mock_config = config
 	if js_scorm is MockScorm:
-		js_scorm = MockScorm.new(config)
+		js_scorm = MockScorm.new(config, PROJECT_SETTINGS_SCRIPT.should_persist_mock_changes())
 
 
 var js_scorm
 class MockScorm:
 	var _data: Dictionary = {}
 	var _config: ScormMockConfig
+	var _persist_changes: bool
 
 	var reachedEnd: bool
 
-	func _init(config: ScormMockConfig = null) -> void:
-		if config:
-			_config = config
-			_data = config.data.duplicate()
+	func _init(config: ScormMockConfig = null, persist_changes: bool = false) -> void:
+		_config = config if config else ScormMockConfig.new()
+		_persist_changes = persist_changes
+		_data = _config.data.duplicate()
 
 	func getValue(key: String) -> Variant:
 		return str(_data.get(key, ""))
@@ -335,7 +338,7 @@ class MockScorm:
 		_data[key] = val
 		if _config:
 			_config.data[key] = val
-			if _config.persist_changes:
+			if _persist_changes:
 				_save_config()
 
 	func commit() -> void:
@@ -355,7 +358,10 @@ func _init():
 	if !js_scorm:
 		if OS.has_feature("web"):
 			push_warning("Scorm: no 'scorm' JS interface found — running in web without a SCORM LMS? Data will not be saved.")
-		js_scorm = MockScorm.new()
+		js_scorm = MockScorm.new(
+			PROJECT_SETTINGS_SCRIPT.get_mock_config(),
+			PROJECT_SETTINGS_SCRIPT.should_persist_mock_changes()
+		)
 
 	for k in LESSON_STATUS_TXT:
 		var v = LESSON_STATUS_TXT[k]

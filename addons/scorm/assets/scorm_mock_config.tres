@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="ScormMockConfig" format=3 uid="uid://cy5pfb5xjpohy"]
+
+[ext_resource type="Script" uid="uid://p8vpi3yh3lke" path="res://addons/scorm-godot-plugin/addons/scorm/scorm_mock_config.gd" id="1_4cxjt"]
+
+[resource]
+script = ExtResource("1_4cxjt")
+metadata/_custom_type_script = "uid://p8vpi3yh3lke"
