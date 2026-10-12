@@ -47,11 +47,6 @@ function getAPI() {
     // try to find the API in the current window�s opener
     theAPI = findAPI(window.opener);
   }
-  // if the API has not been found
-  if (theAPI == null) {
-    // Alert the user that the API Adapter could not be found
-    alert("Unable to find an API adapter");
-  }
   return theAPI;
 }
 ///////////////////////////////////////////
@@ -72,26 +67,43 @@ var finishCalled = false;
 //Track whether or not we successfully initialized.
 var initialized = false;
 
-var API = null;
+var scormAPI = null;
+
+function createLocalScormAPI() {
+  const data = {
+    "cmi.core.lesson_status": "not attempted",
+    "cmi.core.student_name": "Local Preview",
+    "cmi.core.student_id": "local-preview",
+    "cmi.core.lesson_mode": "normal",
+  };
+  return {
+    LMSInitialize: () => SCORM_TRUE,
+    LMSFinish: () => SCORM_TRUE,
+    LMSGetValue: (key) => data[key] ?? "",
+    LMSSetValue: (key, value) => { data[key] = String(value); return SCORM_TRUE; },
+    LMSCommit: () => SCORM_TRUE,
+    LMSGetLastError: () => SCORM_NO_ERROR,
+    LMSGetErrorString: () => "",
+    LMSGetDiagnostic: () => "",
+  };
+}
 
 function ScormProcessInitialize() {
   let result;
 
-  API = getAPI();
+  scormAPI = getAPI();
 
-  if (API == null) {
-    alert(
-      "ERROR - Could not establish a connection with the LMS.\n\nYour results may not be recorded."
-    );
-    return;
+  if (scormAPI == null) {
+    console.info("SCORM: using local preview; progress lasts for this browser session.");
+    scormAPI = createLocalScormAPI();
   }
 
-  result = API.LMSInitialize("");
+  result = scormAPI.LMSInitialize("");
 
   if (result == SCORM_FALSE) {
-    let errorNumber = API.LMSGetLastError();
-    let errorString = API.LMSGetErrorString(errorNumber);
-    let diagnostic = API.LMSGetDiagnostic(errorNumber);
+    let errorNumber = scormAPI.LMSGetLastError();
+    let errorString = scormAPI.LMSGetErrorString(errorNumber);
+    let diagnostic = scormAPI.LMSGetDiagnostic(errorNumber);
 
     let errorDescription =
       "Number: " +
@@ -122,14 +134,14 @@ function ScormProcessFinish() {
     return;
   }
 
-  result = API.LMSFinish("");
+  result = scormAPI.LMSFinish("");
 
   finishCalled = true;
 
   if (result == SCORM_FALSE) {
-    let errorNumber = API.LMSGetLastError();
-    let errorString = API.LMSGetErrorString(errorNumber);
-    let diagnostic = API.LMSGetDiagnostic(errorNumber);
+    let errorNumber = scormAPI.LMSGetLastError();
+    let errorString = scormAPI.LMSGetErrorString(errorNumber);
+    let diagnostic = scormAPI.LMSGetDiagnostic(errorNumber);
 
     let errorDescription =
       "Number: " +
@@ -159,13 +171,13 @@ var scorm = {
       return;
     }
   
-    result = API.LMSCommit("");
+    result = scormAPI.LMSCommit("");
     // console.log("JS-Scorm.commit(): result - " + result);
   
     if (result == SCORM_FALSE) {
-      let errorNumber = API.LMSGetLastError();
-      let errorString = API.LMSGetErrorString(errorNumber);
-      let diagnostic = API.LMSGetDiagnostic(errorNumber);
+      let errorNumber = scormAPI.LMSGetLastError();
+      let errorString = scormAPI.LMSGetErrorString(errorNumber);
+      let diagnostic = scormAPI.LMSGetDiagnostic(errorNumber);
   
       let errorDescription =
         "Number: " +
@@ -188,16 +200,16 @@ var scorm = {
       return;
     }
   
-    result = API.LMSGetValue(element);
+    result = scormAPI.LMSGetValue(element);
     // console.log("JS-Scorm.getValue(): result - " + result);
   
     if (result == "") {
-      let errorNumber = API.LMSGetLastError();
+      let errorNumber = scormAPI.LMSGetLastError();
       // console.log("JS-Scorm.getValue(): errorNumber - " + errorNumber);
   
       if (errorNumber != SCORM_NO_ERROR) {
-        let errorString = API.LMSGetErrorString(errorNumber);
-        let diagnostic = API.LMSGetDiagnostic(errorNumber);
+        let errorString = scormAPI.LMSGetErrorString(errorNumber);
+        let diagnostic = scormAPI.LMSGetDiagnostic(errorNumber);
   
         let errorDescription =
           "Number: " +
@@ -227,13 +239,13 @@ var scorm = {
       return;
     }
   
-    result = API.LMSSetValue(element, value);
+    result = scormAPI.LMSSetValue(element, value);
     // console.log("JS-Scorm.setValue(): result - " + result);
   
     if (result == SCORM_FALSE) {
-      let errorNumber = API.LMSGetLastError();
-      let errorString = API.LMSGetErrorString(errorNumber);
-      let diagnostic = API.LMSGetDiagnostic(errorNumber);
+      let errorNumber = scormAPI.LMSGetLastError();
+      let errorString = scormAPI.LMSGetErrorString(errorNumber);
+      let diagnostic = scormAPI.LMSGetDiagnostic(errorNumber);
   
       let errorDescription =
         "Number: " +
